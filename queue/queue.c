@@ -26,12 +26,10 @@ void queue_print (char *name, queue_t *queue, void print_elem (void*) ) {
     }
 
     queue_t *aux = queue;
+    printf(" [");
 
     do
     {
-        if (aux == queue)
-            printf(" [");
-
         print_elem(aux);
 
         if (aux->next == queue)
@@ -77,7 +75,6 @@ int queue_remove(queue_t **queue, queue_t *elem)
     if (!(*queue)) {
         fprintf(stderr, "Erro: A fila não existe!\n");
         return -1;
-
     }
 
     queue_t *aux = *queue;
