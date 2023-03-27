@@ -2,8 +2,6 @@
 #include "queue.h"
 #include <stdio.h>
 
-int total = 0;
-
 int queue_size (queue_t *queue) {
     if (!queue)
         return 0;
