@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include "ppos.h"
 
-ucontext_t ContextMain;
 task_t TaskMain;
 task_t * CurrentTask;
+int lastId = 0;
 
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init ()
@@ -17,7 +17,7 @@ void ppos_init ()
         return ;
     }
 
-    TaskMain.id = 0;
+    TaskMain.id = lastId++;
     CurrentTask = &TaskMain;
 
     /* desativa o buffer da saida padrao (stdout), usado pela função printf */
@@ -50,6 +50,8 @@ int task_init (task_t *task,			// descritor da nova tarefa
     (task->context).uc_stack.ss_size = STACKSIZE;
     (task->context).uc_stack.ss_flags = 0;
     (task->context).uc_link = 0;
+
+    task->id = lastId++;
 
     makecontext(&(task->context), (void *) start_func, 1, arg);
 
