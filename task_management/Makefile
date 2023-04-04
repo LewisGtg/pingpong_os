@@ -18,5 +18,5 @@ clean:
 purge: clean
 	rm -rf teste1 teste2 teste3
 
-test:
+test: main
 	./test.sh

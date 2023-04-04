@@ -1,7 +1,5 @@
 #/bin/bash
 
-make
-
 tests="teste1 teste2 teste3"
 counter=1
 
