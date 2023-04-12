@@ -12,6 +12,18 @@ task_t * userTasksQueue;
 int lastId = 0;
 int userTasks = 0;
 
+void print_elem (void *ptr)
+{
+   task_t *elem = (task_t *) ptr ;
+
+   if (!elem)
+      return ;
+
+   elem->prev ? printf ("%d", elem->prev->id) : printf ("*") ;
+   printf ("<%d>", elem->id) ;
+   elem->next ? printf ("%d", elem->next->id) : printf ("*") ;
+}
+
 task_t * scheduler()
 {
     return (CurrentTask == &DispatcherTask ? userTasksQueue : CurrentTask->next);
@@ -96,6 +108,7 @@ int task_init (task_t *task,			// descritor da nova tarefa
     if (task->id != 0)
     {
         queue_append((queue_t **) &userTasksQueue, (queue_t*) task);
+        queue_print("Tarefas", (queue_t *) userTasksQueue, print_elem);
         ++userTasks;
     }
 
