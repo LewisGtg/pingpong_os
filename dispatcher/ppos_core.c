@@ -6,8 +6,10 @@
 #include "queue.h"
 
 task_t DispatcherTask;
+task_t TaskMain;
 task_t * CurrentTask;
 task_t * userTasksQueue;
+task_t * CurrentUserTask = NULL;
 
 int lastId = 0;
 int userTasks = 0;
@@ -26,7 +28,14 @@ void print_elem (void *ptr)
 
 task_t * scheduler()
 {
-    return (CurrentTask == &DispatcherTask ? userTasksQueue : CurrentTask->next);
+    if (!CurrentUserTask)
+    {
+        CurrentUserTask = userTasksQueue;
+        return CurrentUserTask;
+    }
+
+    CurrentUserTask = CurrentUserTask->next;
+    return CurrentUserTask;
 }
 
 void dispatcher(void * arg)
@@ -49,7 +58,7 @@ void dispatcher(void * arg)
 
             case TERMINADA:
                 queue_remove((queue_t **)&userTasksQueue, (queue_t *) next);
-                --userTasks;
+                userTasks--;
                 break;
             
             default:
@@ -64,8 +73,16 @@ void dispatcher(void * arg)
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init ()
 {
+    if (getcontext(&(TaskMain.context)) == -1)
+    {
+        fprintf(stderr, "Erro ao inicializar TaskMain!");
+        return ;
+    }
+
+    TaskMain.id = lastId++;
+    CurrentTask = &TaskMain;
+
     task_init(&DispatcherTask, dispatcher, NULL);
-    CurrentTask = &DispatcherTask;
 
     /* desativa o buffer da saida padrao (stdout), usado pela função printf */
     setvbuf(stdout, 0, _IONBF, 0);
@@ -105,10 +122,9 @@ int task_init (task_t *task,			// descritor da nova tarefa
     makecontext(&(task->context), (void *) start_func, 1, arg);
 
     // Não é tarefa do SO
-    if (task->id != 0)
+    if (task->id > 1)
     {
         queue_append((queue_t **) &userTasksQueue, (queue_t*) task);
-        queue_print("Tarefas", (queue_t *) userTasksQueue, print_elem);
         ++userTasks;
     }
 
@@ -124,8 +140,14 @@ int task_id ()
 // Termina a tarefa corrente com um valor de status de encerramento
 void task_exit (int exit_code)
 {
-    CurrentTask->status = TERMINADA;
-    task_switch(&DispatcherTask);
+    if (userTasks == 0)
+        task_switch(&TaskMain);
+    else
+    {
+        CurrentTask->status = TERMINADA;
+        task_switch(&DispatcherTask);
+    }
+
 }
 
 // alterna a execução para a tarefa indicada
@@ -134,11 +156,7 @@ int task_switch (task_t *task)
     task_t *oldTask = CurrentTask;
     CurrentTask = task;
 
-    // (task->context).uc_link = &(oldTask.context);
-    if (&(oldTask->context) == &(task->context))
-        setcontext(&(task->context));
-    else
-        swapcontext(&(oldTask->context), &(task->context));
+    swapcontext(&(oldTask->context), &(task->context));
     return 0;
 }
 
