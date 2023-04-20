@@ -73,16 +73,10 @@ void dispatcher(void * arg)
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init ()
 {
-    if (getcontext(&(TaskMain.context)) == -1)
-    {
-        fprintf(stderr, "Erro ao inicializar TaskMain!");
-        return ;
-    }
-
-    TaskMain.id = lastId++;
-    CurrentTask = &TaskMain;
-
+    task_init(&TaskMain, NULL, NULL);
     task_init(&DispatcherTask, dispatcher, NULL);
+
+    CurrentTask = &TaskMain;
 
     /* desativa o buffer da saida padrao (stdout), usado pela função printf */
     setvbuf(stdout, 0, _IONBF, 0);
@@ -122,7 +116,7 @@ int task_init (task_t *task,			// descritor da nova tarefa
     makecontext(&(task->context), (void *) start_func, 1, arg);
 
     // Não é tarefa do SO
-    if (task->id > 1)
+    if (task != &DispatcherTask)
     {
         queue_append((queue_t **) &userTasksQueue, (queue_t*) task);
         ++userTasks;

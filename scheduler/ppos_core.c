@@ -9,7 +9,6 @@ task_t DispatcherTask;
 task_t TaskMain;
 task_t * CurrentTask;
 task_t * userTasksQueue;
-task_t * CurrentUserTask = NULL;
 
 int lastId = 0;
 int userTasks = 0;
@@ -31,8 +30,8 @@ task_t * scheduler()
     task_t * aux = userTasksQueue;
     task_t * next = aux;
 
-    if (CurrentUserTask)
-        CurrentUserTask->d_prior = CurrentUserTask->s_prior;
+    // "reseta" a prioridade da ultima tarefa executada
+    userTasksQueue->d_prior = userTasksQueue->s_prior;
 
     do
     {
@@ -48,7 +47,7 @@ task_t * scheduler()
     }
     while (aux != userTasksQueue);
 
-    CurrentUserTask = next;
+    userTasksQueue = next;
     return next;
 }
 
@@ -87,16 +86,9 @@ void dispatcher(void * arg)
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init ()
 {
-    if (getcontext(&(TaskMain.context)) == -1)
-    {
-        fprintf(stderr, "Erro ao inicializar TaskMain!");
-        return ;
-    }
-
-    TaskMain.id = lastId++;
-    CurrentTask = &TaskMain;
-
+    task_init(&TaskMain, NULL, NULL);
     task_init(&DispatcherTask, dispatcher, NULL);
+    CurrentTask = &TaskMain;
 
     /* desativa o buffer da saida padrao (stdout), usado pela função printf */
     setvbuf(stdout, 0, _IONBF, 0);
@@ -138,7 +130,7 @@ int task_init (task_t *task,			// descritor da nova tarefa
     makecontext(&(task->context), (void *) start_func, 1, arg);
 
     // Não é tarefa do SO
-    if (task->id > 1)
+    if (task != &DispatcherTask)
     {
         queue_append((queue_t **) &userTasksQueue, (queue_t*) task);
         ++userTasks;
