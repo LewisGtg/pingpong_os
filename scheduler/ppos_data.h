@@ -4,6 +4,8 @@
 
 // Estruturas de dados internas do sistema operacional
 
+// GRR20203893 Lewis Guilherme Theophilo Geraldo
+
 #ifndef __PPOS_DATA__
 #define __PPOS_DATA__
 
