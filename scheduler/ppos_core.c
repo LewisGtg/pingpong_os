@@ -39,7 +39,7 @@ task_t * scheduler()
             next = aux;
         else
         {
-            if (aux->d_prior > MAX_TASK_PRIOR)
+            if (aux != next && aux->d_prior > MAX_TASK_PRIOR)
                 aux->d_prior -= AGING;
         }
 
