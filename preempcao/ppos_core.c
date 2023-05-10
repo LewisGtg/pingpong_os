@@ -64,10 +64,11 @@ void dispatcher(void * arg)
     while(userTasks > 0)
     {
         next = scheduler();
-
+        
         if (next)
         {
-            task_switch(next);
+            if (next->status != TERMINADA)
+                task_switch(next);
 
             switch (next->status)
             {
@@ -123,7 +124,7 @@ void ppos_init ()
         exit(1);
     }
 
-    timer.it_value.tv_usec = 1;      // primeiro disparo, em micro-segundos
+    timer.it_value.tv_usec = 10;      // primeiro disparo, em micro-segundos
     timer.it_value.tv_sec  = 0 ;      // primeiro disparo, em segundos
     timer.it_interval.tv_usec = 1000;   // disparos subsequentes, em micro-segundos
     timer.it_interval.tv_sec  = 0 ;   // disparos subsequentes, em segundos
@@ -136,7 +137,7 @@ void ppos_init ()
 
     /* desativa o buffer da saida padrao (stdout), usado pela função printf */
     setvbuf(stdout, 0, _IONBF, 0);
-    task_yield();
+    // task_yield();
     return ;
 }
 
