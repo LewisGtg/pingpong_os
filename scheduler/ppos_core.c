@@ -61,11 +61,10 @@ void dispatcher(void * arg)
 
         if (next)
         {
-            task_switch(next);
-
             switch (next->status)
             {
             case PRONTA:
+                task_switch(next);
                 /* code */
                 break;
 
@@ -126,6 +125,7 @@ int task_init (task_t *task,			// descritor da nova tarefa
     task->id = lastId++;
     task->s_prior = 0;
     task->d_prior = 0;
+    task->status = PRONTA;
 
     makecontext(&(task->context), (void *) start_func, 1, arg);
 
