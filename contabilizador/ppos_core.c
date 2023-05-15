@@ -223,10 +223,10 @@ void task_exit (int exit_code)
     }
     else
     {
+        userTasks--;
         CurrentTask->status = TERMINADA;
         task_contabilization(CurrentTask);
         queue_remove((queue_t **)&userTasksQueue, (queue_t *)CurrentTask);
-        userTasks--;
         task_yield();
     }
 
