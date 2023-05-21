@@ -13,4 +13,7 @@ clean:
 	rm -rf *.o
 
 purge: clean
-	rm -rf pingpong-contab pingpong-contab-prio
+	rm -rf pingpong-wait lgtg20.tar.gz
+
+tar:
+	tar -czf lgtg20.tar.gz ppos_core.c ppos_data.h ppos.h queue.c queue.h
