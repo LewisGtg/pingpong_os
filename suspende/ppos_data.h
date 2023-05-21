@@ -30,6 +30,7 @@ typedef struct task_t
   int id ;				// identificador da tarefa
   ucontext_t context ;			// contexto armazenado da tarefa
   short status ;			// pronta, rodando, suspensa, ...
+  int exit_code;
   int s_prior ; // prioridade estática
   int d_prior ; // prioridade dinâmica
   int is_kernel_task;

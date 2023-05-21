@@ -23,8 +23,14 @@ unsigned int global_time = 0;
 
 void resume_dependents(task_t * task)
 {
-    for (int i = 0; i < task->dependents_qty; ++i)
-        task_resume(task->dependents[i], &readyTasksQueue);
+    task_t * aux;
+    for (int i = 0; i < task->dependents_qty; i++)
+    {
+        aux = (task_t *)(task->dependents[i]);
+        task_resume(aux, &suspenseTasksQueue);
+        task->dependents[i] = NULL;
+        free(task->dependents[i]);
+    }
 }
 
 void print_elem (void *ptr)
@@ -234,6 +240,7 @@ void task_exit (int exit_code)
     {
         readyTasks--;
         CurrentTask->status = TERMINADA;
+        CurrentTask->exit_code = exit_code;
         task_contabilization(CurrentTask);
         resume_dependents(CurrentTask);
         queue_remove((queue_t **)&readyTasksQueue, (queue_t *)CurrentTask);
@@ -288,12 +295,13 @@ int task_wait(task_t * task)
     if (task == NULL || task->status == TERMINADA)
         return -1;
 
-    task->dependents[task->dependents_qty] = malloc(sizeof(task_t *));
+    task->dependents[task->dependents_qty] = (task_t *) malloc(sizeof(task_t *));
     task->dependents[task->dependents_qty] = CurrentTask;
+    task->dependents_qty++;
 
     task_suspend(&suspenseTasksQueue);
 
-    return 0;
+    return task->exit_code;
 }
 
 void task_suspend (task_t **queue)
