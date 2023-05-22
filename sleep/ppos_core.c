@@ -18,32 +18,46 @@ struct itimerval timer;
 
 int lastId = 0;
 int readyTasks = 0;
+int suspenseTasks = 0;
 int tick = TICK_RATE;
 unsigned int global_time = 0;
+
+void print_elem (void *ptr)
+{
+   task_t *elem = (task_t *) ptr ;
+
+   if (!elem)
+      return ;
+
+   elem->prev ? printf ("%d", elem->prev->id) : printf ("*") ;
+   printf ("<%d>", elem->id) ;
+   elem->next ? printf ("%d", elem->next->id) : printf ("*") ;
+}
 
 void wakeup_tasks()
 {
     task_t * aux = suspenseTasksQueue;
+    task_t * sleepingTask = aux;
 
     if (!aux)
         return;
 
-    // exit(1);
-
     do
     {
-        printf("%p %p %d %d\n", aux, &TaskMain, aux->wakeup_time, global_time);
-
         if (aux->wakeup_time > 0 && aux->wakeup_time == global_time)
         {
-            printf("%d\n", aux->id);
-            task_resume(aux, &suspenseTasksQueue);
+            // printf("%p %p %d %d\n", aux, &TaskMain, aux->wakeup_time, global_time);
+            sleepingTask = aux;
+            aux = aux->next;
+            task_resume(sleepingTask, &suspenseTasksQueue);
         }
-        
-        aux = aux->next;
+        else 
+            aux = aux->next;
+        // print_elem(aux);
+        // printf("\n")
     } while (aux != suspenseTasksQueue);
 
-    printf("saiu\n");
+    // printf("saiu\n");
 }
 
 void resume_dependents(task_t * task)
@@ -58,18 +72,6 @@ void resume_dependents(task_t * task)
     }
 }
 
-void print_elem (void *ptr)
-{
-   task_t *elem = (task_t *) ptr ;
-
-   if (!elem)
-      return ;
-
-   elem->prev ? printf ("%d", elem->prev->id) : printf ("*") ;
-   printf ("<%d>", elem->id) ;
-   elem->next ? printf ("%d", elem->next->id) : printf ("*") ;
-}
-
 void task_contabilization(task_t * task)
 {
    task->exit_time = systime();
@@ -82,6 +84,9 @@ task_t * scheduler()
 {
     task_t * aux = readyTasksQueue;
     task_t * next = aux;
+
+    if (!aux)
+        return NULL;
 
     // "reseta" a prioridade da ultima tarefa executada
     readyTasksQueue->d_prior = readyTasksQueue->s_prior;
@@ -109,14 +114,13 @@ void dispatcher(void * arg)
 {
     task_t * next;
 
-    while(readyTasks > 0)
+    while(readyTasks > 0 || suspenseTasks > 0)
     {
         wakeup_tasks();
         next = scheduler();
 
         if (next)
         {
-
             switch (next->status)
             {
             case PRONTA:
@@ -338,6 +342,8 @@ void task_suspend (task_t **queue)
 
     queue_append((queue_t **) queue, (queue_t *) CurrentTask);
     CurrentTask->status = SUSPENSA; 
+    ++suspenseTasks;
+    --readyTasks;
 
     task_yield();
 }
@@ -349,11 +355,12 @@ void task_resume (task_t * task, task_t **queue)
 
     queue_append((queue_t **) &readyTasksQueue, (queue_t *) task);
     task->status = PRONTA;
+    --suspenseTasks;
+    ++readyTasks;
 }
 
 void task_sleep(int t)
 {
     CurrentTask->wakeup_time = global_time + t;
-    printf("passou\n");
     task_suspend(&suspenseTasksQueue);
 }
