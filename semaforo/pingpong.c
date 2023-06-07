@@ -2,71 +2,70 @@
 // Prof. Carlos A. Maziero, DINF UFPR
 // Versão 1.5 -- Março de 2023
 
-// Teste de semáforos (light)
+// Teste de semáforos (pesado)
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "ppos.h"
 
-task_t      a1, a2, b1, b2;
-semaphore_t s1, s2 ;
+#define NUMTASKS 30
+#define NUMSTEPS 10000
 
-// corpo da thread A
-void TaskA (void * arg)
-{
-   int i ;
-   for (i=0; i<10; i++)
-   {
-      sem_down (&s1) ;
-      printf ("%s zig (%d)\n", (char *) arg, i) ;
-      task_sleep (100) ;
-      sem_up (&s2) ;
-   }
-   task_exit (0) ;
-}
+task_t task[NUMTASKS] ;
+semaphore_t  s ;
+long int soma = 0 ;
 
-// corpo da thread B
-void TaskB (void * arg)
+// corpo das tarefas
+void taskBody(void *id)
 {
-   int i ;
-   for (i=0; i<10; i++)
-   {
-      sem_down (&s2) ;
-      printf ("%s zag (%d)\n", (char *) arg, i) ;
-      task_sleep (100) ;
-      sem_up (&s1) ;
-   }
-   task_exit (0) ;
+  int i ;
+
+  for (i=0; i< NUMSTEPS; i++)
+  {
+    // incrementa contador (seção crítica)
+    sem_down (&s) ;
+    soma += 1 ;
+    sem_up (&s) ;
+  }
+
+  task_exit (0) ;
 }
 
 int main (int argc, char *argv[])
 {
-   printf ("main: inicio\n") ;
+  int i ;
 
-   ppos_init () ;
+  printf ("main: inicio\n") ;
 
-   // inicia semaforos
-   sem_init (&s1, 1) ;
-   sem_init (&s2, 0) ;
+  ppos_init () ;
 
-   // inicia tarefas
-   task_init (&a1, TaskA, "A1") ;
-   task_init (&a2, TaskA, "\tA2") ;
-   task_init (&b1, TaskB, "\t\t\tB1") ;
-   task_init (&b2, TaskB, "\t\t\t\tB2") ;
+  // inicia semáforo em 0 (bloqueado)
+  sem_init (&s, 0) ;
 
-   // aguarda a1 encerrar
-   task_wait (&a1) ;
+  printf ("%d tarefas somando %d vezes cada, aguarde...\n",
+          NUMTASKS, NUMSTEPS) ;
 
-   // destroi semaforos
-   sem_destroy (&s1) ;
-   sem_destroy (&s2) ;
+  // inicia as tarefas
+  for (i=0; i<NUMTASKS; i++)
+    task_init (&task[i], taskBody, "Task") ;
 
-   // aguarda a2, b1 e b2 encerrarem
-   task_wait (&a2) ;
-   task_wait (&b1) ;
-   task_wait (&b2) ;
+  // espera um pouco e libera o semáforo
+  task_sleep (20) ;
+  sem_up (&s) ;
 
-   printf ("main: fim\n") ;
-   task_exit (0) ;
+  // aguarda as tarefas encerrarem
+  for (i=0; i<NUMTASKS; i++)
+    task_wait (&task[i]) ;
+
+  // destroi o semáforo
+  sem_destroy (&s) ;
+
+  // verifica se a soma está correta
+  if (soma == (NUMTASKS*NUMSTEPS))
+    printf ("Soma deu %ld, valor correto!\n", soma) ;
+  else
+    printf ("Soma deu %ld, mas deveria ser %d!\n",
+            soma, NUMTASKS*NUMSTEPS) ;
+
+  task_exit (0) ;
 }

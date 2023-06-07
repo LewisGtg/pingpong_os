@@ -20,6 +20,7 @@ int lastId = 0;
 int readyTasks = 0;
 int suspenseTasks = 0;
 int tick = TICK_RATE;
+int lock = 0 ;
 unsigned int global_time = 0;
 
 void print_elem (void *ptr)
@@ -34,6 +35,18 @@ void print_elem (void *ptr)
    elem->next ? printf ("%d", elem->next->id) : printf ("*") ;
 }
 
+void enter_cs (int *lock)
+{
+  // atomic OR (Intel macro for GCC)
+  while (__sync_fetch_and_or (lock, 1)) ;   // busy waiting
+}
+ 
+// leave critical section
+void leave_cs (int *lock)
+{
+  (*lock) = 0 ;
+}
+
 void wakeup_tasks()
 {
     task_t * aux = suspenseTasksQueue;
@@ -44,12 +57,17 @@ void wakeup_tasks()
 
     do
     {
-        if (aux->wakeup_time > 0 && aux->wakeup_time == global_time)
+        // printf("%d %d %d\n", aux->id, aux->wakeup_time, global_time);
+        // queue_print("suspense: ", (queue_t *) suspenseTasksQueue, print_elem);
+        if (aux->wakeup_time > 0 && aux->wakeup_time <= global_time)
         {
             // printf("%p %p %d %d\n", aux, &TaskMain, aux->wakeup_time, global_time);
             sleepingTask = aux;
-            aux = aux->next;
+            aux = aux->next == aux ? NULL : aux->next;
             task_resume(sleepingTask, &suspenseTasksQueue);
+            // queue_print("suspense: ", (queue_t *)suspenseTasksQueue, print_elem);
+            // printf("saiu\n");
+            // exit(1);
         }
         else 
             aux = aux->next;
@@ -58,6 +76,7 @@ void wakeup_tasks()
     } while (aux != suspenseTasksQueue);
 
     // printf("saiu\n");
+    // exit(1);
 }
 
 void resume_dependents(task_t * task)
@@ -375,16 +394,24 @@ int sem_init (semaphore_t *s, int value)
 
 int sem_down (semaphore_t *s)
 {
-    if (__sync_fetch_and_sub(&(s->counter), 1) <= 0)
+    enter_cs(&lock);
+    --s->counter;
+    if (s->counter < 0)
         task_suspend(&(s->semaphore_queue));
+    leave_cs(&lock);
+
 
     return 0;
 }
 
 int sem_up (semaphore_t *s)
 {
-    if (__sync_fetch_and_add(&(s->counter), 1) < 0)
+    enter_cs(&lock);
+    ++s->counter;
+    if (s->counter <= 0)
         task_resume(s->semaphore_queue, &(s->semaphore_queue));
+    leave_cs(&lock);
+
 
     return 0;
 }
