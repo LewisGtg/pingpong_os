@@ -25,6 +25,7 @@ void taskBody(void *id)
     // incrementa contador (seção crítica)
     sem_down (&s) ;
     soma += 1 ;
+    printf("soma: %ld\n", soma);
     sem_up (&s) ;
   }
 
