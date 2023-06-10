@@ -9,7 +9,7 @@
 #include "ppos.h"
 
 #define NUMTASKS 30
-#define NUMSTEPS 10000
+#define NUMSTEPS 1000000
 
 task_t task[NUMTASKS] ;
 semaphore_t  s ;
@@ -25,7 +25,7 @@ void taskBody(void *id)
     // incrementa contador (seção crítica)
     sem_down (&s) ;
     soma += 1 ;
-    printf("soma: %ld\n", soma);
+    // printf("soma: %ld\n", soma);
     sem_up (&s) ;
   }
 

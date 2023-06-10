@@ -20,7 +20,9 @@ int lastId = 0;
 int readyTasks = 0;
 int suspenseTasks = 0;
 int tick = TICK_RATE;
-int lock = 0 ;
+int lock_counter = 0 ;
+int lock_queue = 0;
+int yield_lock = 0;
 unsigned int global_time = 0;
 
 void print_elem (void *ptr)
@@ -67,20 +69,16 @@ void wakeup_tasks()
         else 
             aux = aux->next;
     } while (aux != suspenseTasksQueue && aux->status == SUSPENSA);
-
-    // printf("saiu\n");
-    // exit(1);
 }
 
 void resume_dependents(task_t * task)
 {
-    task_t * aux;
-    for (int i = 0; i < task->dependents_qty; i++)
+    task_t * aux = task->dep;
+
+    while (queue_size((queue_t *) task->dep) > 0)
     {
-        aux = (task_t *)(task->dependents[i]);
-        task_resume(aux, &suspenseTasksQueue);
-        task->dependents[i] = NULL;
-        free(task->dependents[i]);
+        task_resume(aux, &(task->dep));
+        aux = aux->next;
     }
 }
 
@@ -131,6 +129,7 @@ void dispatcher(void * arg)
         wakeup_tasks();
         next = scheduler();
 
+        // queue_print("Fila de prontas: ", (queue_t *) readyTasksQueue, print_elem);
         if (next)
         {
             switch (next->status)
@@ -153,15 +152,15 @@ void dispatcher(void * arg)
 
 void timerHandler()
 {
-    ++global_time;
-    ++CurrentTask->processor_time;
+    global_time++;
+    CurrentTask->processor_time++;
 
-    if (CurrentTask->is_kernel_task)
+    if (CurrentTask->is_kernel_task || CurrentTask->status == SUSPENSA || CurrentTask->lock == 1)
         return;
 
-    --tick;
+    tick--;
 
-    if (tick == 0)
+    if (tick <= 0)
     {
         tick = TICK_RATE;
         task_yield();
@@ -305,8 +304,10 @@ int task_switch (task_t *task)
 // a tarefa atual libera o processador para outra tarefa
 void task_yield ()
 {
+    CurrentTask->lock = 1;
     DispatcherTask.activations++;
     task_switch(&DispatcherTask);
+    CurrentTask->lock = 0;
 }
 
 // define a prioridade estática de uma tarefa (ou a tarefa atual)
@@ -338,11 +339,7 @@ int task_wait(task_t * task)
     if (task == NULL || task->status == TERMINADA)
         return -1;
 
-    task->dependents[task->dependents_qty] = (task_t *) malloc(sizeof(task_t *));
-    task->dependents[task->dependents_qty] = CurrentTask;
-    task->dependents_qty++;
-
-    task_suspend(&suspenseTasksQueue);
+    task_suspend(&(task->dep));
     task_yield();
 
     return task->exit_code;
@@ -350,21 +347,16 @@ int task_wait(task_t * task)
 
 void task_suspend (task_t **queue)
 {
-    if (queue_remove((queue_t **) &readyTasksQueue, (queue_t *) CurrentTask) < 0)
-        return;
-
-    queue_append((queue_t **) queue, (queue_t *) CurrentTask);
     CurrentTask->status = SUSPENSA; 
+    queue_remove((queue_t **) &readyTasksQueue, (queue_t *) CurrentTask);
+    queue_append((queue_t **) queue, (queue_t *) CurrentTask);
     ++suspenseTasks;
     --readyTasks;
 }
 
 void task_resume (task_t * task, task_t **queue)
 {
-    if (queue_remove((queue_t **) queue, (queue_t *) task) < 0)
-        return;
-
-    printf("tarefa: %d\n", task->id);
+    queue_remove((queue_t **) queue, (queue_t *) task);
     queue_append((queue_t **) &readyTasksQueue, (queue_t *) task);
     task->status = PRONTA;
     --suspenseTasks;
@@ -381,53 +373,50 @@ void task_sleep(int t)
 int sem_init (semaphore_t *s, int value)
 {
    s->counter = value;
-   //s->semaphore_queue = NULL; 
+   s->semaphore_queue = NULL; 
 
    return 0;
 }
 
 int sem_down (semaphore_t *s)
 {
-   printf("Task %d deu down\n", CurrentTask->id);
-   enter_cs(&lock);
+   enter_cs(&lock_counter);
    --s->counter;
+   leave_cs(&lock_counter);
 
    if (s->counter < 0)
    {
+        enter_cs(&lock_queue);
         task_suspend(&(s->semaphore_queue));
-        leave_cs(&lock);
-        printf("Task %d foi suspensa\n", CurrentTask->id);
-        queue_print("a", (queue_t *) s->semaphore_queue, print_elem);
+        leave_cs(&lock_queue);
         task_yield();
-    }
-    else
-        leave_cs(&lock);
+   }
+
+   return 0;
 }
 
-int sem_up (semaphore_t *s)
+int sem_up(semaphore_t *s)
 {
-    task_t * aux;
+   task_t *aux;
+   enter_cs(&lock_counter);
+   ++s->counter;
+   leave_cs(&lock_counter);
 
-    printf("Task %d deu up\n", s->semaphore_queue->id);
-    enter_cs(&lock);
-    ++s->counter;
-    if (s->counter <= 0)
-    {
+   if (s->counter <= 0)
+   {
+        enter_cs(&lock_queue);
         aux = s->semaphore_queue;
-        s->semaphore_queue = s->semaphore_queue->next;
         task_resume(aux, &(s->semaphore_queue));
-    }
-    printf("Task %d foi acordada\n", s->semaphore_queue->id);
-    queue_print("a", (queue_t *) s->semaphore_queue, print_elem);
-    leave_cs(&lock);
+        leave_cs(&lock_queue);
+   }
 
-    return 0;
+   return 0;
 }
 
-int sem_destroy (semaphore_t *s)
+int sem_destroy(semaphore_t *s)
 {
-    while (queue_size((queue_t *) s->semaphore_queue) > 0)
+   while (queue_size((queue_t *)s->semaphore_queue) > 0)
         sem_up(s);
 
-    return 0;
+   return 0;
 }

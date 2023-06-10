@@ -41,7 +41,9 @@ typedef struct task_t
   unsigned int activations;
   unsigned int wakeup_time;
   int dependents_qty;
-  void * dependents[];
+  int lock;
+  // void * dependents[];
+  struct task_t * dep;
   // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
