@@ -17,7 +17,7 @@ typedef struct content_t {
 
 content_t * content_queue;
 
-task_t p1, p2, c1, c2, c3;
+task_t p1, p2, p3, c1, c2;
 semaphore_t s_buffer, s_item, s_vaga;
 
 // corpo da thread A
@@ -88,9 +88,9 @@ int main (int argc, char *argv[])
    // inicia tarefas
    task_init (&p1, Produtor, "p1");
    task_init (&p2, Produtor, "p2");
+   task_init (&p3, Produtor, "p2");
    task_init (&c1, Consumidor, "c1");
    task_init (&c2, Consumidor, "c2");
-   task_init (&c3, Consumidor, "c3");
 
    task_wait(&p1);
 
