@@ -456,7 +456,7 @@ int mqueue_send(mqueue_t *queue, void *msg)
    sem_down(&(queue->s_buffer));
 
    mcontent_t *content = malloc(sizeof(mcontent_t));
-   content->value = malloc(sizeof(queue->msg_size));
+   content->value = malloc(queue->msg_size);
    memcpy(content->value, msg, queue->msg_size);
 
    content->next = NULL;
