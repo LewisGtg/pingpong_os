@@ -374,15 +374,16 @@ void task_sleep(int t)
 int sem_init (semaphore_t *s, int value)
 {
    s->counter = value;
-   s->semaphore_queue = NULL; 
+   s->semaphore_ended = 0;
+//    s->semaphore_queue = NULL; 
 
    return 0;
 }
 
 int sem_down(semaphore_t *s)
 {
-    if (!s)
-        return -1;    
+    if (!s || s->semaphore_ended)
+        return -1;       
 
     enter_cs(&lock_counter);
    --s->counter;
@@ -401,7 +402,7 @@ int sem_down(semaphore_t *s)
 
 int sem_up(semaphore_t *s)
 {
-    if (!s)
+    if (!s || s->semaphore_ended)
         return -1;
 
     task_t *aux;
@@ -422,7 +423,7 @@ int sem_up(semaphore_t *s)
 
 int sem_destroy(semaphore_t *s)
 {
-   if (!s)
+   if (!s || s->semaphore_ended)
         return -1;
     
     task_t * aux = s->semaphore_queue;
@@ -433,6 +434,7 @@ int sem_destroy(semaphore_t *s)
         aux = s->semaphore_queue;
    }    
 
+    s->semaphore_ended = 1;
    s = NULL;
    return 0;
 }
@@ -452,7 +454,7 @@ int mqueue_send(mqueue_t *queue, void *msg)
    if (!queue)
         return -1;
 
-   sem_down(&(queue->s_vaga));
+   if (sem_down(&(queue->s_vaga)) < 0) return -1;
    sem_down(&(queue->s_buffer));
 
    mcontent_t *content = malloc(sizeof(mcontent_t));

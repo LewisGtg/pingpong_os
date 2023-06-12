@@ -52,6 +52,7 @@ typedef struct
 {
   int counter;
   task_t * semaphore_queue;
+  int semaphore_ended;
 } semaphore_t ;
 
 // estrutura que define um mutex
